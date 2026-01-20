@@ -1,0 +1,17 @@
+services:
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: api-gateway
+    restart: unless-stopped
+    environment:
+      API_GATEWAY_PORT: ${API_GATEWAY_PORT}
+    ports:
+      - "${API_GATEWAY_PORT}:${API_GATEWAY_PORT}"
+
+
+volumes:
+  pgdata:
+

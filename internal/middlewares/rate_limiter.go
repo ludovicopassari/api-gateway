@@ -1,24 +1,24 @@
 package middlewares
 
 import (
+	"fmt"
 	"net/http"
-	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/ludovicopassari/api-gateway/internal/limiter"
+	"github.com/ludovicopassari/api-gateway/internal/limiters"
 )
 
-/*
-this function needs to reject requests for a specific IP if its request limit is reached
-*/
-
-func RateLimitMiddleware(l limiter.RateLimiter) gin.HandlerFunc {
+func RateLimitMiddleware(l limiters.RateLimiter) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		key := c.ClientIP() // oppure userID
 
-		allowed, retryAfter := l.Allow(key)
+		allowed, _ := l.Allow(key)
 		if !allowed {
-			c.Header("Retry-After", strconv.Itoa(int(retryAfter.Seconds())))
+			c.Header("Retry-After", "60") // 60 secondi
+			c.Header("X-RateLimit-Limit", "100")
+			c.Header("X-RateLimit-Remaining", "0")
+			c.Header("X-RateLimit-Reset", fmt.Sprintf("%d", time.Now().Add(1*time.Minute).Unix()))
 			c.JSON(http.StatusTooManyRequests, gin.H{
 				"error": "rate limit exceeded",
 			})

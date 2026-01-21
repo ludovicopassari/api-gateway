@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"net/http"
 	"os"
 	"time"
@@ -9,10 +11,36 @@ import (
 	"github.com/ludovicopassari/api-gateway/internal/limiter"
 	"github.com/ludovicopassari/api-gateway/internal/middlewares"
 	"github.com/ludovicopassari/api-gateway/pkg/logger"
+	redis "github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 )
 
 func main() {
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     "redis:6379",
+		Password: "", // no password
+		DB:       0,  // use default DB
+		Protocol: 2,
+	})
+
+	ctx := context.Background()
+
+	incrResult1, err := rdb.Set(ctx, "mykey", "10", 0).Result()
+
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println(incrResult1)
+
+	incrResult2, err := rdb.Incr(ctx, "mykey").Result()
+
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println(incrResult2)
+
 	logCfg := logger.Config{
 		Level:       getEnv("LOG_LEVEL", "debug"),
 		Environment: getEnv("ENV", "development"),

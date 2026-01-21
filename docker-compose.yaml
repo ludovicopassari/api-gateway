@@ -1,4 +1,13 @@
 services:
+  redis:
+    image: redis:7-alpine
+    container_name: api-gateway-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - gateway-network
 
   api-gateway:
     build:
@@ -6,9 +15,20 @@ services:
       dockerfile: Dockerfile
     container_name: api-gateway
     restart: unless-stopped
+    depends_on:
+      - redis
     environment:
       API_GATEWAY_PORT: ${API_GATEWAY_PORT}
       GIN_MODE: ${GIN_MODE}
     ports:
       - "${API_GATEWAY_PORT}:${API_GATEWAY_PORT}"
+    networks:
+      - gateway-network
 
+volumes:
+  redis_data:
+    driver: local
+
+networks:
+  gateway-network:
+    driver: bridge

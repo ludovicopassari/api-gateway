@@ -3,15 +3,18 @@ package main
 import (
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/ludovicopassari/api-gateway/internal/limiter"
+	"github.com/ludovicopassari/api-gateway/internal/middlewares"
 	"github.com/ludovicopassari/api-gateway/pkg/logger"
 	"go.uber.org/zap"
 )
 
 func main() {
 	logCfg := logger.Config{
-		Level:       getEnv("LOG_LEVEL", "info"),
+		Level:       getEnv("LOG_LEVEL", "debug"),
 		Environment: getEnv("ENV", "development"),
 		OutputPaths: []string{"stdout"},
 	}
@@ -24,12 +27,14 @@ func main() {
 	logger.Info("Starting API Gateway",
 		zap.String("env", logCfg.Environment),
 		zap.String("level", logCfg.Level),
+		zap.Time("time", time.Now()),
 	)
 
-	// Create a Gin router with default middleware (logger and recovery)
-	r := gin.Default()
+	limiter := limiter.NewMemoryLimiter(10, time.Minute)
 
-	// Define a simple GET endpoint
+	r := gin.Default()
+	r.Use(middlewares.RateLimitMiddleware(limiter))
+
 	r.GET("/ping", func(c *gin.Context) {
 		r := c.Request
 		logger.Info("Request received",
@@ -39,7 +44,7 @@ func main() {
 			zap.String("client_ip", c.ClientIP()),
 			zap.String("user_agent", r.UserAgent()),
 		)
-		// Return JSON response
+
 		c.JSON(http.StatusOK, gin.H{
 			"message": "pong",
 		})
@@ -48,6 +53,7 @@ func main() {
 	// Start server on port 8080 (default)
 	// Server will listen on 0.0.0.0:8080 (localhost:8080 on Windows)
 	r.Run()
+
 }
 
 func getEnv(key, defaultValue string) string {

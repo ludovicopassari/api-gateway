@@ -41,7 +41,8 @@ func main() {
 
 	r := gin.Default()
 
-	limiter := limiters.NewFixedWindow(rdb, 10, time.Second*10)
+	//limiter := limiters.NewFixedWindow(rdb, 10, time.Second*10)
+	limiter := limiters.NewSlidingWindowLimiter(rdb, 100, time.Minute)
 
 	// setup Gin middlewares
 	r.Use(middlewares.RateLimitMiddleware(limiter))

@@ -27,5 +27,6 @@ func RateLimitMiddleware(l limiters.RateLimiter) gin.HandlerFunc {
 		}
 
 		c.Next()
+
 	}
 }

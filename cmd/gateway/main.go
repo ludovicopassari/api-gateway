@@ -9,8 +9,10 @@ import (
 	"github.com/ludovicopassari/api-gateway/internal/limiters"
 	"github.com/ludovicopassari/api-gateway/internal/limiters/storage"
 	"github.com/ludovicopassari/api-gateway/internal/middlewares"
+	"github.com/ludovicopassari/api-gateway/internal/monitoring"
 	"github.com/ludovicopassari/api-gateway/pkg/logger"
-	"go.uber.org/zap"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func main() {
@@ -27,11 +29,8 @@ func main() {
 	}
 	defer logger.Sync()
 
-	logger.Info("Starting API Gateway",
-		zap.String("env", logCfg.Environment),
-		zap.String("level", logCfg.Level),
-		zap.Time("time", time.Now()),
-	)
+	reg := prometheus.NewRegistry()
+	m := monitoring.NewMetrics(reg)
 
 	// setup connection with in-memory DB
 	rdb, err := storage.NewRedis("redis:6379")
@@ -40,18 +39,24 @@ func main() {
 	}
 
 	r := gin.Default()
-
-	//limiter := limiters.NewFixedWindow(rdb, 10, time.Second*10)
-	limiter := limiters.NewSlidingWindowLimiter(rdb, 100, time.Minute)
-
-	// setup Gin middlewares
-	r.Use(middlewares.RateLimitMiddleware(limiter))
-
-	r.GET("/ping", func(c *gin.Context) {
+	r.GET("/metrics", gin.WrapH(promhttp.HandlerFor(reg, promhttp.HandlerOpts{Registry: reg})))
+	r.GET("/healt", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
-			"message": "pong",
+			"status": "ok",
 		})
 	})
+
+	api := r.Group("/api")
+	limiter := limiters.NewSlidingWindowLimiter(rdb, 100, time.Minute)
+	api.Use(middlewares.PrometheusMonitoringMiddleware(m))
+	api.Use(middlewares.RateLimitMiddleware(limiter))
+	{
+		api.GET("/service", func(ctx *gin.Context) {
+			ctx.JSON(http.StatusOK, gin.H{
+				"service": "payment service",
+			})
+		})
+	}
 
 	r.Run()
 

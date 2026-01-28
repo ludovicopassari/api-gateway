@@ -4,9 +4,9 @@ import (
 	"time"
 
 	"github.com/ludovicopassari/api-gateway/internal/limiters"
-	"github.com/ludovicopassari/api-gateway/internal/limiters/storage"
 	"github.com/ludovicopassari/api-gateway/internal/monitoring"
 	"github.com/ludovicopassari/api-gateway/internal/routers"
+	"github.com/ludovicopassari/api-gateway/internal/storage"
 	"github.com/ludovicopassari/api-gateway/pkg/logger"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/zap"
@@ -36,13 +36,12 @@ func main() {
 	reg := prometheus.NewRegistry()
 	m := monitoring.NewMetrics(reg)
 
-	// setup connection with in-memory DB
-	rdb, err := storage.NewRedis("redis:6379")
-	if err != nil {
-		panic(err)
-	}
+	redisdb, _ := storage.GetClient(
+		storage.WithAddr("redis:6379"),
+		storage.WithPassword(""),
+	)
 
-	limiter := limiters.NewSlidingWindowLimiter(rdb, 10, time.Minute)
+	limiter := limiters.NewSlidingWindowLimiter(redisdb, 100, time.Minute)
 	r := routers.SetupRouter(m, limiter)
 
 	r.Run(":" + "80")

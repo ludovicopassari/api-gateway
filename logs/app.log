@@ -1,0 +1,2 @@
+{"level":"info","ts":1769603919.6216037,"caller":"gateway/main.go:32","msg":"Starting Gateway","timestamp":1769603919.621602}
+{"level":"info","ts":1769603930.787006,"caller":"middlewares/logging.go:19","msg":"request served","client_ip":"192.168.65.1","method":"GET","path":"/health","status":200,"latency":0.001379625,"rate_limit_remaining":0,"rate_limited":false}

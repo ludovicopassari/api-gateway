@@ -16,11 +16,11 @@ func PrometheusMonitoringMiddleware(m *monitoring.Metrics) gin.HandlerFunc {
 			return
 		}
 
-		start := time.Now()
-
 		c.Next()
 
+		start := c.GetTime("start_time")
 		duration := time.Since(start).Seconds()
+
 		status := c.Writer.Status()
 		path := c.FullPath()
 
@@ -39,8 +39,6 @@ func PrometheusMonitoringMiddleware(m *monitoring.Metrics) gin.HandlerFunc {
 			path,
 		).Observe(duration)
 
-		fmt.Printf("Request %s %s completed with status %d in %v\n",
-			c.Request.Method, c.FullPath(), status, duration)
 	}
 
 }

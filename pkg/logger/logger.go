@@ -13,6 +13,17 @@ type Config struct {
 	OutputPaths []string // ["stdout", "logs/app.log"]
 }
 
+func SetupLogger() {
+	logCfg := Config{
+		Level:       "debug",
+		Environment: "production",
+		OutputPaths: []string{"stdout", "/var/log/myapp/app.log"},
+	}
+	if err := Init(logCfg); err != nil {
+		panic("failed to initialize logger: " + err.Error())
+	}
+}
+
 func Init(cfg Config) error {
 	var config zap.Config
 

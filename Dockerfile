@@ -12,6 +12,8 @@ RUN go build -o /api-gateway ./cmd/gateway/main.go
 
 FROM alpine:3.18
 WORKDIR /root/
+RUN mkdir -p /var/log/myapp && \
+    touch /var/log/myapp/app.log
 COPY --from=builder /api-gateway .
 EXPOSE 8080
 CMD ["./api-gateway"]

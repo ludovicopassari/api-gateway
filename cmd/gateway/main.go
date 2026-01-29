@@ -6,7 +6,7 @@ import (
 	"github.com/ludovicopassari/api-gateway/internal/limiters"
 	"github.com/ludovicopassari/api-gateway/internal/monitoring"
 	"github.com/ludovicopassari/api-gateway/internal/routers"
-	"github.com/ludovicopassari/api-gateway/internal/storage"
+	redistorage "github.com/ludovicopassari/api-gateway/internal/storage/redis"
 	"github.com/ludovicopassari/api-gateway/pkg/logger"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/zap"
@@ -36,13 +36,21 @@ func main() {
 	reg := prometheus.NewRegistry()
 	m := monitoring.NewMetrics(reg)
 
-	redisdb, _ := storage.GetClient(
-		storage.WithAddr("redis:6379"),
-		storage.WithPassword(""),
-	)
+	if err := redistorage.Init(
+		redistorage.WithAddr("redis:6379"),
+		redistorage.WithPassword(""),
+	); err != nil {
+		logger.Fatal("Failed to initialize Redis", zap.Error(err))
+	}
+	defer redistorage.Close()
+
+	redisdb, err := redistorage.RedisClient()
+	if err != nil {
+		logger.Fatal("Failed to get Redis client", zap.Error(err))
+	}
 
 	limiter := limiters.NewSlidingWindowLimiter(redisdb, 100, time.Minute)
-	r := routers.SetupRouter(m, limiter)
+	r := routers.SetupRouter(reg, m, limiter)
 
 	r.Run(":" + "80")
 

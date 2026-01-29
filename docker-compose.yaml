@@ -33,6 +33,8 @@ services:
     depends_on:
       - api-gateway
       - redis
+    environment:
+      - TZ=Europe/Rome
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
     command:

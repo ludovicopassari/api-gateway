@@ -3,12 +3,16 @@ package main
 import (
 	"time"
 
-	"github.com/ludovicopassari/api-gateway/internal/limiters"
+	"github.com/gin-gonic/gin"
+	"github.com/ludovicopassari/api-gateway/internal/handlers"
+	"github.com/ludovicopassari/api-gateway/internal/middlewares"
 	"github.com/ludovicopassari/api-gateway/internal/monitoring"
-	"github.com/ludovicopassari/api-gateway/internal/routers"
-	redistorage "github.com/ludovicopassari/api-gateway/internal/storage/redis"
+	"github.com/ludovicopassari/api-gateway/internal/ratelimit"
+	"github.com/ludovicopassari/api-gateway/internal/storage"
+
 	"github.com/ludovicopassari/api-gateway/pkg/logger"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
 )
 
@@ -36,21 +40,17 @@ func main() {
 	reg := prometheus.NewRegistry()
 	m := monitoring.NewMetrics(reg)
 
-	if err := redistorage.Init(
-		redistorage.WithAddr("redis:6379"),
-		redistorage.WithPassword(""),
-	); err != nil {
-		logger.Fatal("Failed to initialize Redis", zap.Error(err))
-	}
-	defer redistorage.Close()
+	storage, _ := storage.NewStorageFromEnv()
+	limiter := ratelimit.NewSlidingWindow(storage, 100, time.Second*60)
 
-	redisdb, err := redistorage.RedisClient()
-	if err != nil {
-		logger.Fatal("Failed to get Redis client", zap.Error(err))
-	}
+	gin.SetMode(gin.ReleaseMode)
+	r := gin.New()
+	r.Use(middlewares.LoggingMiddleware)
+	r.Use(middlewares.RateLimitMiddleware(limiter))
+	r.Use(middlewares.PrometheusMonitoringMiddleware(m))
 
-	limiter := limiters.NewSlidingWindowLimiter(redisdb, 100, time.Minute)
-	r := routers.SetupRouter(reg, m, limiter)
+	r.GET("/metrics", gin.WrapH(promhttp.HandlerFor(reg, promhttp.HandlerOpts{Registry: reg})))
+	r.GET("/health", handlers.HealthHandler)
 
 	r.Run(":" + "80")
 

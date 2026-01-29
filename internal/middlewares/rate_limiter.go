@@ -6,16 +6,16 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/ludovicopassari/api-gateway/internal/limiters"
+	"github.com/ludovicopassari/api-gateway/internal/ratelimit"
 )
 
-func RateLimitMiddleware(l limiters.RateLimiter) gin.HandlerFunc {
+func RateLimitMiddleware(l ratelimit.RateLimiter) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		key := c.ClientIP()
 
 		c.Set("rate_limited", false)
 
-		if pass, _ := l.Allow(key); !pass {
+		if pass := l.Allow(key); !pass {
 			c.Set("rate_limited", true)
 			// headers
 			c.Header("Retry-After", "60") // TODO dinamic config
